@@ -14,6 +14,7 @@
 
 namespace WeChat\Contracts;
 
+use think\facade\Cache;
 use WeChat\Exceptions\InvalidArgumentException;
 use WeChat\Exceptions\InvalidResponseException;
 
@@ -105,7 +106,11 @@ class BasicWeChat
             return $this->access_token;
         }
         $cache = $this->config->get('appid') . '_access_token';
-        $this->access_token = Tools::getCache($cache);
+
+        // 修改缓存为框架缓存
+        //$this->access_token = Tools::getCache($cache);
+        $this->access_token = Cache::get($cache);
+
         if (!empty($this->access_token)) {
             return $this->access_token;
         }
@@ -113,7 +118,9 @@ class BasicWeChat
         if (!empty($this->GetAccessTokenCallback) && is_callable($this->GetAccessTokenCallback)) {
             $this->access_token = call_user_func_array($this->GetAccessTokenCallback, [$this->config->get('appid'), $this]);
             if (!empty($this->access_token)) {
-                Tools::setCache($cache, $this->access_token, 7000);
+                // 修改缓存为框架缓存
+                //Tools::setCache($cache, $this->access_token, 7000);
+                Cache::set($cache, $this->access_token, 7000);
             }
             return $this->access_token;
         }
@@ -121,28 +128,32 @@ class BasicWeChat
         $url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$appid}&secret={$secret}";
         $result = Tools::json2arr(Tools::get($url));
         if (!empty($result['access_token'])) {
-            Tools::setCache($cache, $result['access_token'], 7000);
+            // 修改缓存为框架缓存
+            //Tools::setCache($cache, $result['access_token'], 7000);
+            Cache::set($cache, $result['access_token'], 7000);
         }
         return $this->access_token = $result['access_token'];
     }
 
     /**
      * 设置外部接口 AccessToken
-     * @param string $accessToken
+     * @param string $access_token
      * @throws \WeChat\Exceptions\LocalCacheException
      * @author 高一平 <iam@gaoyiping.com>
      *
-     * 当用户使用自己的缓存驱动时，直接实例化对象后可直接设置 AccessToken
+     * 当用户使用自己的缓存驱动时，直接实例化对象后可直接设置 AccessToekn
      * - 多用于分布式项目时保持 AccessToken 统一
-     * - 使用此方法后就由用户来保证传入的 AccessToken 为有效 AccessToken
+     * - 使用此方法后就由用户来保证传入的 AccessToekn 为有效 AccessToekn
      */
-    public function setAccessToken($accessToken)
+    public function setAccessToken($access_token)
     {
-        if (!is_string($accessToken)) {
+        if (!is_string($access_token)) {
             throw new InvalidArgumentException("Invalid AccessToken type, need string.");
         }
         $cache = $this->config->get('appid') . '_access_token';
-        Tools::setCache($cache, $this->access_token = $accessToken);
+        // 修改缓存为框架缓存
+        //Tools::setCache($cache, $this->access_token = $access_token);
+        Cache::set($cache, $this->access_token = $access_token);
     }
 
     /**
@@ -152,7 +163,9 @@ class BasicWeChat
     public function delAccessToken()
     {
         $this->access_token = '';
-        return Tools::delCache($this->config->get('appid') . '_access_token');
+        // 修改缓存为框架缓存
+        //return Tools::delCache($this->config->get('appid') . '_access_token');
+        return Cache::rm($this->config->get('appid') . '_access_token');
     }
 
     /**
@@ -169,7 +182,8 @@ class BasicWeChat
         } catch (InvalidResponseException $exception) {
             if (isset($this->currentMethod['method']) && empty($this->isTry)) {
                 if (in_array($exception->getCode(), ['40014', '40001', '41001', '42001'])) {
-                    [$this->delAccessToken(), $this->isTry = true];
+                    $this->delAccessToken();
+                    $this->isTry = true;
                     return call_user_func_array([$this, $this->currentMethod['method']], $this->currentMethod['arguments']);
                 }
             }

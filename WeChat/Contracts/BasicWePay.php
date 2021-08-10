@@ -170,7 +170,7 @@ class BasicWePay
      * @throws InvalidResponseException
      * @throws \WeChat\Exceptions\LocalCacheException
      */
-    protected function callPostApi($url, array $data, $isCert = false, $signType = 'HMAC-SHA256', $needSignType = true, $needNonceStr = true)
+    protected function callPostApi($url, array $data, $isCert = false, $signType = 'HMAC-SHA256', $needSignType = true, $notNeedKey = [])
     {
         $option = [];
         if ($isCert) {
@@ -192,8 +192,12 @@ class BasicWePay
             }
         }
         $params = $this->params->merge($data);
-        if (!$needNonceStr) unset($params['nonce_str']);
-        if ($needSignType) $params['sign_type'] = strtoupper($signType);
+		if(!empty($notNeedKey)) {
+			for($i = 0; $i < count($notNeedKey); $i++) {
+				unset($params[$notNeedKey[$i]]);
+			}
+		}
+        $needSignType && ($params['sign_type'] = strtoupper($signType));
         $params['sign'] = $this->getPaySign($params, $signType);
         $result = Tools::xml2arr(Tools::post($url, Tools::arr2xml($params), $option));
         if ($result['return_code'] !== 'SUCCESS') {
